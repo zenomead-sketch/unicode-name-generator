@@ -1,29 +1,48 @@
 import { Copy } from 'lucide-react'
-import type { CommandBundle, CommandShell } from '../types/banner'
+import type { CommandBundle, CommandMode, CommandShell } from '../types/banner'
 import { ActionButton } from './ActionButton'
 
 interface CommandTabsProps {
   readonly activeShell: CommandShell
+  readonly commandMode: CommandMode
   readonly commandBundle: CommandBundle
   readonly isCopied: boolean
   readonly onChangeShell: (shell: CommandShell) => void
+  readonly onChangeMode: (mode: CommandMode) => void
   readonly onCopyCommand: () => void
 }
 
 export function CommandTabs({
   activeShell,
+  commandMode,
   commandBundle,
   isCopied,
   onChangeShell,
+  onChangeMode,
   onCopyCommand,
 }: CommandTabsProps) {
   const tabs: { id: CommandShell; label: string }[] = [
     { id: 'bash', label: 'Bash / zsh' },
     { id: 'powershell', label: 'PowerShell' },
   ]
+  const modes: { id: CommandMode; label: string }[] = [
+    { id: 'run', label: 'Run once' },
+    { id: 'profile', label: 'Save for future sessions' },
+  ]
 
-  const command =
-    activeShell === 'bash' ? commandBundle.bash : commandBundle.powershell
+  const command = commandBundle[activeShell][commandMode]
+  const helperText =
+    commandMode === 'run'
+      ? 'Print the current banner right away in the selected shell.'
+      : activeShell === 'bash'
+        ? 'Writes or updates the banner in both ~/.bashrc and ~/.zshrc.'
+        : 'Writes or updates the banner in $PROFILE.CurrentUserAllHosts.'
+  const copyLabel =
+    isCopied
+      ? 'Copied'
+      : commandMode === 'run'
+        ? 'Copy Command'
+        : 'Copy Save Command'
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
@@ -35,16 +54,35 @@ export function CommandTabs({
           <h2 className="mt-2 text-xl font-semibold text-white">
             Copy-ready terminal command
           </h2>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400">{helperText}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <ActionButton
             icon={Copy}
-            label={isCopied ? 'Copied' : 'Copy Command'}
+            label={copyLabel}
             onClick={onCopyCommand}
             variant="secondary"
             className="px-3 py-2 text-xs"
           />
+          <div className="inline-flex rounded-full border border-white/10 bg-white/6 p-1">
+            {modes.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                onClick={() => onChangeMode(mode.id)}
+                aria-pressed={commandMode === mode.id}
+                className={[
+                  'rounded-full px-4 py-2 font-mono text-xs transition',
+                  commandMode === mode.id
+                    ? 'bg-cyan-200 text-slate-950'
+                    : 'text-slate-300 hover:text-white',
+                ].join(' ')}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
           <div className="inline-flex rounded-full border border-white/10 bg-white/6 p-1">
             {tabs.map((tab) => (
               <button

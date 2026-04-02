@@ -6,6 +6,7 @@ export type BannerStyleId =
   | 'mosaic'
   | 'scan'
 export type CommandShell = 'bash' | 'powershell'
+export type CommandMode = 'run' | 'profile'
 export type BannerColorId =
   | 'plain'
   | 'red'
@@ -67,9 +68,14 @@ export interface BannerColor {
   readonly powershellName?: string
 }
 
+export interface ShellCommandSet {
+  readonly run: string
+  readonly profile: string
+}
+
 export interface CommandBundle {
-  readonly bash: string
-  readonly powershell: string
+  readonly bash: ShellCommandSet
+  readonly powershell: ShellCommandSet
 }
 
 export interface RenderedBannerBundle {

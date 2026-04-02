@@ -31,6 +31,7 @@ import {
 import type {
   BannerColorId,
   BannerStyleId,
+  CommandMode,
   CommandShell,
 } from './types/banner'
 
@@ -70,6 +71,7 @@ function App() {
   const [activeShell, setActiveShell] = useState<CommandShell>(
     initialShareState.shell,
   )
+  const [commandMode, setCommandMode] = useState<CommandMode>('run')
   const [clipboardAction, setClipboardAction] = useState<
     | 'output'
     | 'command'
@@ -91,10 +93,7 @@ function App() {
   )
 
   const deferredInput = useDeferredValue(inputText)
-  const currentCommand =
-    activeShell === 'bash'
-      ? bannerBundle.commands.bash
-      : bannerBundle.commands.powershell
+  const currentCommand = bannerBundle.commands[activeShell][commandMode]
   const canPasteFromClipboard =
     typeof navigator !== 'undefined' && !!navigator.clipboard?.readText
   const styleAccent = bannerBundle.style.accent
@@ -103,7 +102,9 @@ function App() {
     clipboardAction === 'output'
       ? 'Banner output copied to your clipboard.'
       : clipboardAction === 'command'
-        ? `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} command copied.`
+        ? commandMode === 'run'
+          ? `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} command copied.`
+          : `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} profile install command copied.`
         : clipboardAction === 'ansi'
           ? 'ANSI-colored output copied with escape codes included.'
         : clipboardAction === 'share'
@@ -499,6 +500,11 @@ function App() {
                   best. Older shells may ignore ANSI styling.
                 </p>
                 <p>
+                  Switch the command panel to `Save for future sessions` to
+                  generate a startup-profile installer that restores the banner
+                  whenever you open a new terminal window.
+                </p>
+                <p>
                   Shortcuts: `Enter` generates, `Ctrl/Cmd+Shift+C` copies the
                   active command, and `Ctrl/Cmd+Shift+V` pastes clipboard text
                   into the input.
@@ -563,9 +569,11 @@ function App() {
 
             <CommandTabs
               activeShell={activeShell}
+              commandMode={commandMode}
               commandBundle={bannerBundle.commands}
               isCopied={clipboardAction === 'command'}
               onChangeShell={setActiveShell}
+              onChangeMode={setCommandMode}
               onCopyCommand={() => handleCopy(currentCommand, 'command')}
             />
           </div>

@@ -13,6 +13,8 @@ import type {
 
 const GLYPH_HEIGHT = 5
 const FALLBACK_CHARACTER = '?'
+const PROFILE_START_MARKER = '# >>> unicode-name-banner-generator >>>'
+const PROFILE_END_MARKER = '# <<< unicode-name-banner-generator <<<'
 
 interface BannerOptions {
   readonly text: string
@@ -153,7 +155,7 @@ function createAnsiOutput(output: string, color: BannerColor) {
   return `\u001b[${color.bashAnsiCode}m${output}\u001b[0m`
 }
 
-function createCommands(lines: string[], color: BannerColor) {
+function createRunCommands(lines: string[], color: BannerColor) {
   const bashArgs = lines.map((line) => `'${escapeForBash(line)}'`).join(' ')
   const powershellLines = lines
     .map((line) => `  '${escapeForPowerShell(line)}'`)
@@ -172,6 +174,77 @@ function createCommands(lines: string[], color: BannerColor) {
   return {
     bash,
     powershell,
+  }
+}
+
+function createBashProfileCommand(runCommand: string) {
+  const block = `${PROFILE_START_MARKER}\n${runCommand}\n${PROFILE_END_MARKER}`
+
+  return [
+    `PYTHON_BIN="$(command -v python3 || command -v python)"`,
+    `[ -n "$PYTHON_BIN" ] || { echo "Python is required to update your shell profile." >&2; exit 1; }`,
+    `"$PYTHON_BIN" - <<'PY'`,
+    `from pathlib import Path`,
+    `start = ${JSON.stringify(PROFILE_START_MARKER)}`,
+    `end = ${JSON.stringify(PROFILE_END_MARKER)}`,
+    `block = ${JSON.stringify(block)}`,
+    `for profile_name in ('.bashrc', '.zshrc'):`,
+    `    path = Path.home() / profile_name`,
+    `    text = path.read_text(encoding='utf-8') if path.exists() else ''`,
+    `    if start in text and end in text:`,
+    `        before, _, rest = text.partition(start)`,
+    `        _, _, after = rest.partition(end)`,
+    `        updated = before.rstrip('\\n') + '\\n\\n' + block + '\\n' + after.lstrip('\\n')`,
+    `    elif text.strip():`,
+    `        updated = text.rstrip('\\n') + '\\n\\n' + block + '\\n'`,
+    `    else:`,
+    `        updated = block + '\\n'`,
+    `    path.write_text(updated, encoding='utf-8')`,
+    `print('Saved banner to ~/.bashrc and ~/.zshrc')`,
+    `PY`,
+    `printf 'Open a new terminal window to load the banner.\\n'`,
+  ].join('\n')
+}
+
+function createPowerShellProfileCommand(runCommand: string) {
+  return [
+    `$profilePath = $PROFILE.CurrentUserAllHosts`,
+    `if (-not $profilePath) { $profilePath = $PROFILE }`,
+    `$startMarker = '${escapeForPowerShell(PROFILE_START_MARKER)}'`,
+    `$endMarker = '${escapeForPowerShell(PROFILE_END_MARKER)}'`,
+    `$block = @'`,
+    PROFILE_START_MARKER,
+    runCommand,
+    PROFILE_END_MARKER,
+    `'@`,
+    `$profileDir = Split-Path -Parent $profilePath`,
+    `if ($profileDir -and -not (Test-Path $profileDir)) { New-Item -ItemType Directory -Path $profileDir -Force | Out-Null }`,
+    `$current = if (Test-Path $profilePath) { Get-Content $profilePath -Raw } else { '' }`,
+    `$pattern = '(?s)' + [regex]::Escape($startMarker) + '.*?' + [regex]::Escape($endMarker)`,
+    `if ($current -match $pattern) {`,
+    `  $updated = [regex]::Replace($current, $pattern, $block)`,
+    `} elseif ([string]::IsNullOrWhiteSpace($current)) {`,
+    `  $updated = $block`,
+    `} else {`,
+    `  $updated = $current.TrimEnd() + "\`r\`n\`r\`n" + $block`,
+    `}`,
+    `Set-Content -Path $profilePath -Value $updated -Encoding utf8`,
+    `Write-Host "Saved banner to $profilePath. Open a new terminal window to load it."`,
+  ].join('\n')
+}
+
+function createCommands(lines: string[], color: BannerColor) {
+  const runCommands = createRunCommands(lines, color)
+
+  return {
+    bash: {
+      run: runCommands.bash,
+      profile: createBashProfileCommand(runCommands.bash),
+    },
+    powershell: {
+      run: runCommands.powershell,
+      profile: createPowerShellProfileCommand(runCommands.powershell),
+    },
   }
 }
 
