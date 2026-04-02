@@ -206,6 +206,37 @@ function createBashProfileCommand(runCommand: string) {
   ].join('\n')
 }
 
+function createBashProfileRemovalCommand() {
+  return [
+    `PYTHON_BIN="$(command -v python3 || command -v python)"`,
+    `[ -n "$PYTHON_BIN" ] || { echo "Python is required to update your shell profile." >&2; exit 1; }`,
+    `"$PYTHON_BIN" - <<'PY'`,
+    `from pathlib import Path`,
+    `start = ${JSON.stringify(PROFILE_START_MARKER)}`,
+    `end = ${JSON.stringify(PROFILE_END_MARKER)}`,
+    `for profile_name in ('.bashrc', '.zshrc'):`,
+    `    path = Path.home() / profile_name`,
+    `    if not path.exists():`,
+    `        continue`,
+    `    text = path.read_text(encoding='utf-8')`,
+    `    if start not in text or end not in text:`,
+    `        continue`,
+    `    before, _, rest = text.partition(start)`,
+    `    _, _, after = rest.partition(end)`,
+    `    before = before.rstrip('\\n')`,
+    `    after = after.lstrip('\\n')`,
+    `    if before and after:`,
+    `        updated = before + '\\n\\n' + after`,
+    `    elif before:`,
+    `        updated = before + '\\n'`,
+    `    else:`,
+    `        updated = after`,
+    `    path.write_text(updated, encoding='utf-8')`,
+    `print('Removed saved banner block from ~/.bashrc and ~/.zshrc when present')`,
+    `PY`,
+  ].join('\n')
+}
+
 function createPowerShellProfileCommand(runCommand: string) {
   return [
     `$profilePath = $PROFILE.CurrentUserAllHosts`,
@@ -233,6 +264,30 @@ function createPowerShellProfileCommand(runCommand: string) {
   ].join('\n')
 }
 
+function createPowerShellProfileRemovalCommand() {
+  return [
+    `$profilePath = $PROFILE.CurrentUserAllHosts`,
+    `if (-not $profilePath) { $profilePath = $PROFILE }`,
+    `$startMarker = '${escapeForPowerShell(PROFILE_START_MARKER)}'`,
+    `$endMarker = '${escapeForPowerShell(PROFILE_END_MARKER)}'`,
+    `if (-not (Test-Path $profilePath)) {`,
+    `  Write-Host "No PowerShell profile was found at $profilePath."`,
+    `  return`,
+    `}`,
+    `$current = Get-Content $profilePath -Raw`,
+    `$pattern = '(?s)\r?\n?' + [regex]::Escape($startMarker) + '.*?' + [regex]::Escape($endMarker) + '\r?\n?'`,
+    `if ($current -match $pattern) {`,
+    `  $updated = [regex]::Replace($current, $pattern, '')`,
+    `  $updated = $updated.TrimEnd()`,
+    `  if ($updated.Length -gt 0) { $updated += "\`r\`n" }`,
+    `  Set-Content -Path $profilePath -Value $updated -Encoding utf8`,
+    `  Write-Host "Removed the saved banner block from $profilePath."`,
+    `} else {`,
+    `  Write-Host "No saved banner block was found in $profilePath."`,
+    `}`,
+  ].join('\n')
+}
+
 function createCommands(lines: string[], color: BannerColor) {
   const runCommands = createRunCommands(lines, color)
 
@@ -240,10 +295,12 @@ function createCommands(lines: string[], color: BannerColor) {
     bash: {
       run: runCommands.bash,
       profile: createBashProfileCommand(runCommands.bash),
+      remove: createBashProfileRemovalCommand(),
     },
     powershell: {
       run: runCommands.powershell,
       profile: createPowerShellProfileCommand(runCommands.powershell),
+      remove: createPowerShellProfileRemovalCommand(),
     },
   }
 }

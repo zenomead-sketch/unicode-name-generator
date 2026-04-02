@@ -28,12 +28,17 @@ export function CommandTabs({
   const modes: { id: CommandMode; label: string }[] = [
     { id: 'run', label: 'Run once' },
     { id: 'profile', label: 'Save for future sessions' },
+    { id: 'remove', label: 'Remove from future sessions' },
   ]
 
   const command = commandBundle[activeShell][commandMode]
   const helperText =
     commandMode === 'run'
       ? 'Print the current banner right away in the selected shell.'
+      : commandMode === 'remove'
+        ? activeShell === 'bash'
+          ? 'Removes the saved banner block from both ~/.bashrc and ~/.zshrc.'
+          : 'Removes the saved banner block from $PROFILE.CurrentUserAllHosts.'
       : activeShell === 'bash'
         ? 'Writes or updates the banner in both ~/.bashrc and ~/.zshrc.'
         : 'Writes or updates the banner in $PROFILE.CurrentUserAllHosts.'
@@ -42,7 +47,9 @@ export function CommandTabs({
       ? 'Copied'
       : commandMode === 'run'
         ? 'Copy Command'
-        : 'Copy Save Command'
+        : commandMode === 'profile'
+          ? 'Copy Save Command'
+          : 'Copy Remove Command'
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">

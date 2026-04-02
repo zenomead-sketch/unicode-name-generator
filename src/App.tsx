@@ -104,6 +104,8 @@ function App() {
       : clipboardAction === 'command'
         ? commandMode === 'run'
           ? `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} command copied.`
+          : commandMode === 'remove'
+            ? `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} profile removal command copied.`
           : `${activeShell === 'bash' ? 'Bash/zsh' : 'PowerShell'} profile install command copied.`
         : clipboardAction === 'ansi'
           ? 'ANSI-colored output copied with escape codes included.'
@@ -503,6 +505,10 @@ function App() {
                   Switch the command panel to `Save for future sessions` to
                   generate a startup-profile installer that restores the banner
                   whenever you open a new terminal window.
+                </p>
+                <p>
+                  Use `Remove from future sessions` if you want a safe cleanup
+                  command that removes only the banner block this app added.
                 </p>
                 <p>
                   Shortcuts: `Enter` generates, `Ctrl/Cmd+Shift+C` copies the
